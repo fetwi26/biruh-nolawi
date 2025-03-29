@@ -1,0 +1,39 @@
+name: Deploy Snowflake Dynamic Tables
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target Environment (DEV, TEST, PROD)'
+        required: true
+        default: 'DEV'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Set up Python (if using SnowSQL wrapper)
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install SnowSQL CLI
+        run: |
+          pip install snowflake-connector-python
+
+      - name: Deploy Dynamic Table - Energy Asset
+        env:
+          SNOWFLAKE_USER: ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_ROLE: ${{ secrets.SNOWFLAKE_ROLE }}
+        run: |
+          snowsql -a $SNOWFLAKE_ACCOUNT -u $SNOWFLAKE_USER -r $SNOWFLAKE_ROLE -q "
+            USE ROLE $SNOWFLAKE_ROLE;
+            USE DATABASE CURATED_${{ github.event.inputs.environment }};
+            USE SCHEMA CURATED;
+            $(<snowflake/dynamic_tables/energy_asset_dynamic_table.sql)
+          "
